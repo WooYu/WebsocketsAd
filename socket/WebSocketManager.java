@@ -181,6 +181,10 @@ public class WebSocketManager {
         return null != webSocket && connectState == ConnectionState.CONNECTED;
     }
 
+    public boolean isConnecting() {
+        return null != webSocket && connectState == ConnectionState.CONNECTING;
+    }
+
     /**
      * 更新token和URL，然后重新连接
      */
@@ -247,23 +251,6 @@ public class WebSocketManager {
     }
 
     /**
-     * 发送业务消息
-     */
-    public void sendBusinessData(String data) {
-        if (TextUtils.isEmpty(data)) {
-            return;
-        }
-        String seqOfMsg = WsMsgManager.getInstance().getSeq();
-        String businessMsg = WsMsgManager.getInstance().generateUpCmdOfSendData(seqOfMsg, data);
-
-        if (null != wsMsgCallback) {
-            wsMsgCallback.onMessageSend(seqOfMsg, businessMsg);
-        }
-
-        addRetryForBusinessMsg(seqOfMsg, businessMsg);
-    }
-
-    /**
      * 为业务消息添加重试机制
      */
     public void addRetryForBusinessMsg(String seqOfMsg, String businessMsg) {
@@ -271,7 +258,7 @@ public class WebSocketManager {
         task.setRetryResultCallback(new MessageRetryCallback() {
             @Override
             public void retryFailed(MessageRetryTask sendTask) {
-                handleFailedBusinessMessage(sendTask.getSeq(), sendTask.getOriginMsg());
+                handleFailedBusinessMessage("retryFailed", sendTask.getSeq(), sendTask.getOriginMsg());
             }
 
             @Override
@@ -422,11 +409,12 @@ public class WebSocketManager {
      */
     private void startConnectStabilityCheck() {
         stopConnectStabilityCheck();
-        // 延迟5分钟后启动
-        connectStabilityCheckDisposable = Observable.timer(5, TimeUnit.MINUTES)
+        // 延迟启动，单位分钟
+        int delayCheckTime = 30;
+        connectStabilityCheckDisposable = Observable.timer(delayCheckTime, TimeUnit.MINUTES)
                 .flatMap(ignored -> Observable.defer(() -> {
-                    // 随机5-15分钟的延迟
-                    long delay = 5 + (long) (Math.random() * 10);
+                    // 随机1~2倍延迟后再次检查
+                    long delay = delayCheckTime + (long) (Math.random() * delayCheckTime);
                     return Observable.timer(delay, TimeUnit.MINUTES);
                 }))
                 .repeat() // 重复这个过程
@@ -506,8 +494,7 @@ public class WebSocketManager {
             return;
         }
         if (!isConnected()) {
-            Logger.e(logTag, "sendMsgOfBusiness() Message sending failed because the connection has been disconnected! seq = " + task.getSeq());
-            handleFailedBusinessMessage(task.getSeq(), task.getOriginMsg());
+            handleFailedBusinessMessage("the connection has been disconnected", task.getSeq(), task.getOriginMsg());
             return;
         }
 
@@ -523,8 +510,8 @@ public class WebSocketManager {
      * 处理失败的业务消息
      * 如果发送业务消息时未建立连接或者发送消息超过重试次数，那么消息发送失败
      */
-    private void handleFailedBusinessMessage(String seq, String message) {
-        Logger.e(logTag, "Business message sending failed! seq = " + seq + " , message = " + message);
+    private void handleFailedBusinessMessage(String reason, String seq, String message) {
+        Logger.e(logTag, "sendBusiness message sending failed! reason = " + reason + " . seq = " + seq + ", message = " + message);
         //从缓存队列移除
         businessMsgProcessor.removeMessage(seq);
         if (null != wsMsgCallback) {

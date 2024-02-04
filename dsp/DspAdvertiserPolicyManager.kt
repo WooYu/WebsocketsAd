@@ -2,6 +2,7 @@ package com.oohlink.player.sdk.manager.dsp
 
 import android.text.TextUtils
 import com.oohlink.player.sdk.common.LogTag
+import com.oohlink.player.sdk.dataRepository.DefaultSharedPreferenceDao
 import com.oohlink.player.sdk.dataRepository.PlayerDataRepository
 import com.oohlink.player.sdk.dataRepository.local.room.entity.DspAdvertiserRequestParamsEntity
 import com.oohlink.player.sdk.dataRepository.local.room.entity.DspStrategyPeriodTimeEntity
@@ -79,6 +80,11 @@ object DspAdvertiserPolicyManager {
      */
     fun handleEnvironmentChange(logPrefix: String) {
         Logger.d(logTag, "handleEnvironmentChange()->logPrefix = $logPrefix")
+        val token = DefaultSharedPreferenceDao.getInstance().deviceToken
+        if (TextUtils.isEmpty(token)) {
+            Logger.e(logTag, "handleEnvironmentChange()->token is empty!")
+            return
+        }
         try {
             // 异步处理请求，使用Completable作为返回值，可以更好地处理请求完成、错误等情况
             destroyDisposable(disposableOfHandleEnvChange)

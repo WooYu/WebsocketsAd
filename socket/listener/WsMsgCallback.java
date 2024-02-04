@@ -22,11 +22,6 @@ public interface WsMsgCallback {
     void onMessageReceived(WebSocketRespMsg respMsg);
 
     /**
-     * 发送消息
-     */
-    void onMessageSend(String seq, String content);
-
-    /**
      * 消息发送失败
      */
     void onMessageSendFailed(String seq, String content);

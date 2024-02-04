@@ -34,6 +34,20 @@ class DspAdvertiserApiManager private constructor() {
 
     private val compositeDisposable = CompositeDisposable()
 
+    private val retrofit: Retrofit by lazy {
+        // 初始化retrofit
+        val gson = GsonBuilder().setLenient().create()
+        Retrofit.Builder()
+            .baseUrl(PlayerConstants.getApiBaseUrl())
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .client(HttpManager.getInstance().adVendorOkhttpClient)
+            .build()
+    }
+
+    private val apiService: HttpAdVendorApi by lazy {
+        retrofit.create(HttpAdVendorApi::class.java)
+    }
+
     fun cancelAllApiCalls() {
         compositeDisposable.clear()
     }
@@ -88,16 +102,6 @@ class DspAdvertiserApiManager private constructor() {
         if (requestMethod?.isBlank() == true || requestUrl?.isBlank() == true) {
             return Observable.error(IllegalArgumentException("requestMethod and requestUrl cannot be empty"))
         }
-
-        //初始化retrofit
-        val gson = GsonBuilder().setLenient().create()
-        val retrofit: Retrofit = Retrofit.Builder()
-            .baseUrl(PlayerConstants.getApiBaseUrl())
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .client(HttpManager.getInstance().adVendorOkhttpClient)
-            .build()
-
-        val apiService: HttpAdVendorApi = retrofit.create(HttpAdVendorApi::class.java)
 
         val call = if (requestMethod.equals("POST", ignoreCase = true)) {
             var requestBody: RequestBody? = null
